@@ -28,6 +28,11 @@
 
 (defstruct box row col)
 
+(defun box-number-to-box (num)
+  (let ((q (truncate (1- num) 3))
+        (r (rem (1- num) 3)))
+    (make-box :row (1+ q) :col (1+ r))))
+
 (defun num-to-box-number (num)
   (1+ (truncate (1- num) 3)))
 
@@ -55,6 +60,21 @@
 (defun create-cell (row col value)
   (make-cell :pos (make-pos :row row :col col :box (cell-box-calc row col))
              :value value))
+
+(defun candidates-get-box (box cands)
+  (typecase box
+    (integer
+     (remove-if-not (lambda (cell)
+                      (equalp (box-number-to-box box) (pos-box (cell-pos cell)))) cands))
+    (box
+     (remove-if-not (lambda (cell)
+                      (equalp box (pos-box (cell-pos cell)))) cands))))
+
+(defun candidates-get-col (col cands)
+  (remove-if-not (lambda (cell) (= col (pos-col (cell-pos cell)))) cands))
+
+(defun candidates-get-row (row cands)
+  (remove-if-not (lambda (cell) (= row (pos-row (cell-pos cell)))) cands))
 
 (defun string-to-cells (string)
   (if (not (= (length string) 81))
