@@ -2,12 +2,12 @@
   :version "0.1.0"
   :author "Jani Hakala"
   :license "GPL-2"
-  :depends-on ("iterate"
-               "alexandria")
+  :depends-on ("alexandria"
+               "iterate")
   :components ((:module "src"
                 :components
                 ((:file "main"))))
-  :description ""
+  :description "Sudoku solver"
   :in-order-to ((test-op (test-op "cl-sudoku/tests"))))
 
 (defsystem "cl-sudoku/tests"
