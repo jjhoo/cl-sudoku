@@ -14,10 +14,11 @@
 ;;
 (require :iterate)
 
-(defpackage :sudoku
-  (:use :cl :alexandria-2 :iterate))
+(defpackage :cl-sudoku
+  (:use :cl :alexandria-2 :iterate)
+  (:export main print-grid))
 
-(in-package :sudoku)
+(in-package :cl-sudoku)
 
 (define-condition invalid-value (error)
   ((value :initarg :value
@@ -159,6 +160,7 @@
       (print (length ncandidates))
       (terpri)
       (print-grid solved)
-      )))
+      (print (candidates-get-box 9 ncandidates))
+      1)))
 
-(main)
+;; (main)
