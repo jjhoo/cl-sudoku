@@ -12,10 +12,9 @@
 ;;  You should have received a copy of the GNU General Public License
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
-(require :iterate)
-
 (defpackage :cl-sudoku
-  (:use :cl :alexandria-2 :iterate)
+  (:import-from :iterate :collect :finally :for :in :iter :reducing)
+  (:use :cl :alexandria-2)
   (:export main print-grid))
 
 (in-package :cl-sudoku)
