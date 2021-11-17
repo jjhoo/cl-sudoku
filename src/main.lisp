@@ -13,8 +13,9 @@
 ;;  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ;;
 (defpackage :cl-sudoku
+  (:import-from :alexandria-2 :iota :remove-if)
   (:import-from :iterate :collect :finally :for :in :iter :reducing)
-  (:use :cl :alexandria-2)
+  (:use :cl)
   (:export main print-grid))
 
 (in-package :cl-sudoku)
