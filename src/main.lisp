@@ -43,15 +43,19 @@
 (defstruct pos row col box)
 
 (defun pos-same-row-p (pos1 pos2)
+  (declare (type pos pos1) (type pos pos2))
   (= (pos-row pos1) (pos-row pos2)))
 
 (defun pos-same-col-p (pos1 pos2)
+  (declare (type pos pos1) (type pos pos2))
   (= (pos-col pos1) (pos-col pos2)))
 
 (defun pos-same-box-p (pos1 pos2)
+  (declare (type pos pos1) (type pos pos2))
   (equalp (pos-box pos1) (pos-box pos2)))
 
 (defun pos-sees (pos1 pos2)
+  (declare (type pos pos1) (type pos pos2))
   (or (pos-same-row-p pos1 pos2)
       (pos-same-col-p pos1 pos2)
       (pos-same-box-p pos1 pos2)))
@@ -59,6 +63,7 @@
 (defstruct cell pos value)
 
 (defun create-cell (row col value)
+  (declare (type integer row col value))
   (make-cell :pos (make-pos :row row :col col :box (cell-box-calc row col))
              :value value))
 
