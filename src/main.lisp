@@ -151,7 +151,7 @@
       (let* ((pos (cell-pos cell))
              (row (pos-row pos))
              (col (pos-col pos)))
-        (setf (aref grid row col) (cell-value cell))))))
+        (setf (aref grid (1- row) (1- col)) (cell-value cell))))))
 
 (defun print-grid (grid)
   (write-line "+-------+-------+-------+")
