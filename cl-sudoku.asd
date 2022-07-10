@@ -3,7 +3,8 @@
   :author "Jani Hakala"
   :license "GPL-2"
   :depends-on ("alexandria"
-               "iterate")
+               "iterate"
+               "snakes")
   :components ((:module "src"
                 :components
                 ((:file "main"))))

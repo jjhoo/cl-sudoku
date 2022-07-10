@@ -15,6 +15,7 @@
 (defpackage :cl-sudoku
   (:import-from :alexandria-2 :iota :remove-if)
   (:import-from :iterate :collect :finally :for :in :iter :reducing)
+  (:import-from :snakes :product)
   (:use :cl)
   (:export main print-grid))
 
@@ -123,7 +124,7 @@
                                           acc)))
                  initial-value candidates)))
     (array
-     (iter (for pos in-generator (snakes:product (iota 9) (iota 9)))
+     (iter (for pos in-generator (product (iota 9) (iota 9)))
        (reducing pos by (lambda (acc pos)
                           (let* ((value (aref solved (first pos) (second pos)))
                                  (cell1 (create-cell (1+ (first pos))
