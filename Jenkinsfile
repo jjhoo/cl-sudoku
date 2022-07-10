@@ -23,13 +23,13 @@ node {
                sh 'mkdir ~/common-lisp'
                sh 'ln -s ${WORKSPACE} ~/common-lisp/cl-sudoku'
             }
-            stage('Quickload cl-sudoku') {
+            stage('Build') {
                sh 'sbcl --eval \'(ql:quickload "cl-sudoku")\''
             }
-            stage('Quickload cl-sudoku/tests') {
+            stage('Build tests') {
                sh 'sbcl --eval \'(ql:quickload "cl-sudoku/tests")\''
             }
-            stage('Test') {
+            stage('Run tests') {
                sh 'sbcl --eval \'(asdf:test-system "cl-sudoku")\''
             }
         }
