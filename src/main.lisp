@@ -14,7 +14,7 @@
 ;;
 (defpackage :cl-sudoku
   (:import-from :alexandria-2 :iota :remove-if)
-  (:import-from :iterate :adjoining :collect :finally :first-iteration-p :for :in :iter :reducing)
+  (:import-from :iterate :adjoining :collect :finally :first-iteration-p :for :in :iter :next-iteration :reducing)
   (:import-from :snakes :defgenerator :do-generator :generator->list :list->generator :product)
   (:use :cl)
   (:export groupby
@@ -156,10 +156,58 @@
                                            acc))))
                  initial-value candidates)))))
 
-(defun find-singles-simple (solved cells)
-  ;; (let ((grouped (groupby (list->generator cells) :key #'cell-pos :comp #'eqpos)))
-  ;; (generator->list grouped)))
-  (group-cells-by-pos cells))
+(defstruct find-result found eliminated)
+
+(defun finder (pred cands)
+  (let ((found nil)
+	(eliminated nil)
+	(gen (product (iota 9 :start 1)
+		      (list #'candidates-get-row
+			    #'candidates-get-col
+			    #'candidates-get-box))))
+    (iter (for (i func) in-generator gen)
+      ;; (format t "funkkia ~d ~a ~%" i func)
+      (let* ((set (funcall func i cands))
+	     (result (funcall pred set))
+	     (nfound (find-result-found result))
+	     (neliminated (find-result-eliminated result)))
+	(if (not (null nfound))
+	    (appending nfound into found))
+	(if (not (null neliminated))
+	    (appending neliminated into eliminated))))
+    (make-find-result :found found :eliminated eliminated)))
+
+
+(defun find-naked-singles (solved cells)
+  (let* ((grouped (group-cells-by-pos cells))
+	 (ngrouped (remove-if (lambda (x)
+				(let ((pos (car x))
+				      (values (cdr x)))
+				  (> (length values) 1)))
+			      grouped))
+	 (found nil))
+    (iter (for (pos1 . values) in ngrouped)
+      ;; (format t "~c snafu: ~a -> ~a~%" #\TAB pos1 values)
+      (if (= (length values) 1)
+	  (let ((cell (find-if cells (lambda (pos2) (eqpos pos1 pos2) :key #'cell-pos))))
+	    (appending cell into found))))
+    (make-find-result :found found :eliminated nil)))
+
+(defun find-singles-in-set (cells)
+  (let* ((numbers (mapcar #'cell-value cells))
+	 (grouped (groupby (sort numbers #'<)))
+	 (found nil))
+    (iter (for (n . ns) in grouped)
+      ;; (format t "number: ~a -> ~a~%" n ns)
+      (if (= (length ns) 1)
+	  (let ((cell (find-if cells #'= :key #'cell-value)))
+	    (appending cell into found))))
+    (make-find-result :found found :eliminated nil)))
+
+
+(defun find-hidden-singles (solved cells)
+  (finder #'find-singles-in-set cells))
+
 
 (defstruct solver solved candidates)
 
@@ -175,19 +223,35 @@
         (setf (aref grid (1- row) (1- col)) (cell-value cell))))))
 
 
-
 (defun solver-solve (solver)
-  (let ((candidates (solver-candidates solver)))
-    (iter (for row in (iota 9))
-      (let* ((nrow (1+ row))
-	     (cells (candidates-get-row nrow candidates))
-	     (poss (unique-cell-positions cells))
-	     (grouped (find-singles-simple (solver-solved solver) cells)))
-	;; (format t "~d ~a~%" nrow poss)
-	(format t "~d ~a~%" nrow cells)
-	(format t "~& ~a~%" grouped)
-
-	))))
+  (let ((candidates (solver-candidates solver))
+	(solved (solver-solved solver))
+	(funs (list #'find-naked-singles
+		    #'find-hidden-singles))
+	(exitflag nil))
+    (if (null candidates)
+	(solver)
+	(loop
+	  (if exitflag
+	      (progn
+		(format t "solve finished~%")
+		(return solver)))
+	  (iter (for fun in funs)
+	    (finally (setf exitflag t))
+	    (let* ((result (funcall fun solved candidates))
+		   (eliminated (find-result-eliminated result))
+		   (found (find-result-found result)))
+	      (format t "fook: ~a ~a ~a~%" fun found eliminated)
+	      (cond
+		((and (null found) (null eliminated))
+		 (next-iteration))
+		((not (empty found))
+		 (solver-update-solved solver found)
+		 (solver-remove-candidates solver found)
+		 (finish))
+		((not (empty eliminated))
+		 (solver-remove-candidates solver found)
+		 (finish)))))))))
 
 (defun print-grid (grid)
   (write-line "+-------+-------+-------+")
