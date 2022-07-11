@@ -7,7 +7,8 @@
                "snakes")
   :components ((:module "src"
                 :components
-                ((:file "main"))))
+                ((:file "main")
+		 (:file "utils"))))
   :description "Sudoku solver"
   :in-order-to ((test-op (test-op "cl-sudoku/tests"))))
 

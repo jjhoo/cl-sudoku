@@ -1,4 +1,4 @@
-;; Copyright (c) 2021 Jani J. Hakala <jjhakala@gmail.com>, Finland
+;; Copyright (c) 2021-2022 Jani J. Hakala <jjhakala@gmail.com>, Finland
 ;;
 ;;  This program is free software: you can redistribute it and/or modify
 ;;  it under the terms of the GNU General Public License as published by
@@ -14,10 +14,12 @@
 ;;
 (defpackage :cl-sudoku
   (:import-from :alexandria-2 :iota :remove-if)
-  (:import-from :iterate :collect :finally :for :in :iter :reducing)
-  (:import-from :snakes :product)
+  (:import-from :iterate :adjoining :collect :finally :first-iteration-p :for :in :iter :reducing)
+  (:import-from :snakes :defgenerator :do-generator :generator->list :list->generator :product)
   (:use :cl)
-  (:export main print-grid))
+  (:export groupby
+	   main
+	   print-grid))
 
 (in-package :cl-sudoku)
 
@@ -27,6 +29,9 @@
           :reader valued)))
 
 (make-condition 'invalid-value)
+
+(defun group-cells-by-pos (cells)
+  (groupby cells :keyf #'cell-pos :compf #'eqpos :valuef #'cell-value))
 
 (defstruct box row col)
 
@@ -42,6 +47,12 @@
   (make-box :row (num-to-box-number row) :col (num-to-box-number col)))
 
 (defstruct pos row col box)
+
+(defun eqpos (pos1 pos2)
+  (declare (type pos pos1 pos2))
+  (and
+   (= (pos-row pos1) (pos-row pos2))
+   (= (pos-col pos1) (pos-col pos2))))
 
 (defun pos-same-row-p (pos1 pos2)
   (declare (type pos pos1 pos2))
@@ -67,6 +78,10 @@
   (declare (type integer row col value))
   (make-cell :pos (make-pos :row row :col col :box (cell-box-calc row col))
              :value value))
+
+(defun unique-cell-positions (cells)
+  (remove-duplicates (mapcar #'cell-pos cells) :test #'eqpos))
+
 
 (defun candidates-get-box (box cands)
   (typecase box
@@ -141,6 +156,11 @@
                                            acc))))
                  initial-value candidates)))))
 
+(defun find-singles-simple (solved cells)
+  ;; (let ((grouped (groupby (list->generator cells) :key #'cell-pos :comp #'eqpos)))
+  ;; (generator->list grouped)))
+  (group-cells-by-pos cells))
+
 (defstruct solver solved candidates)
 
 (defun solver-remove-candidates (solver candidates)
@@ -153,6 +173,21 @@
              (row (pos-row pos))
              (col (pos-col pos)))
         (setf (aref grid (1- row) (1- col)) (cell-value cell))))))
+
+
+
+(defun solver-solve (solver)
+  (let ((candidates (solver-candidates solver)))
+    (iter (for row in (iota 9))
+      (let* ((nrow (1+ row))
+	     (cells (candidates-get-row nrow candidates))
+	     (poss (unique-cell-positions cells))
+	     (grouped (find-singles-simple (solver-solved solver) cells)))
+	;; (format t "~d ~a~%" nrow poss)
+	(format t "~d ~a~%" nrow cells)
+	(format t "~& ~a~%" grouped)
+
+	))))
 
 (defun print-grid (grid)
   (write-line "+-------+-------+-------+")
@@ -186,14 +221,15 @@
     ;;(loop for c across grid do (princ c))))
     (let* ((solved (string-to-grid grid))
            (candidates (create-candidates))
-           (ncandidates (remove-candidates candidates solved)))
+           (ncandidates (remove-candidates candidates solved))
+	   (solver (make-solver :solved solved :candidates ncandidates)))
       ;; (print solved)
-      (print candidates)
-      (print ncandidates)
+      ;; (print candidates)
+      ;; (print ncandidates)
       (print (length ncandidates))
       (terpri)
       (print-grid solved)
-      (print (candidates-get-box 9 ncandidates))
+      (solver-solve solver)
       1)))
 
 ;; (main)
