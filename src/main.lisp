@@ -14,7 +14,8 @@
 ;;
 (defpackage :cl-sudoku
   (:import-from :alexandria-2 :iota :remove-if)
-  (:import-from :iterate :adjoining :collect :finally :first-iteration-p :for :in :iter :next-iteration :reducing)
+  (:import-from :iterate :adjoining :appending :collect :finally :finish :first-iteration-p
+   :for :in :iter :next-iteration :reducing :unioning)
   (:import-from :snakes :defgenerator :do-generator :generator->list :list->generator :product)
   (:use :cl)
   (:export groupby
@@ -123,7 +124,20 @@
       (iter (for n in (iota 9 :start 1))
         (in outer (collect (create-cell i j n)))))))
 
-(defun remove-candidates (candidates solved)
+(defun remove-eliminated-candidates (candidates eliminated)
+  (iter (for cell in eliminated)
+    (reducing cell by (lambda (acc cell1)
+                        (if (= 0 (cell-value cell1))
+                            acc
+                            (remove-if (lambda (cell2)
+                                         (and (eqpos (cell-pos cell1)
+						     (cell-pos cell2))
+                                              (= (cell-value cell1)
+                                                 (cell-value cell2))))
+                                       acc)))
+              initial-value candidates)))
+
+(defun remove-solved-candidates (candidates solved)
   (typecase solved
     (list
      (iter (for cell in solved)
@@ -156,26 +170,26 @@
                                            acc))))
                  initial-value candidates)))))
 
-(defstruct find-result found eliminated)
+
+(defstruct findresult found eliminated)
 
 (defun finder (pred cands)
-  (let ((found nil)
-	(eliminated nil)
-	(gen (product (iota 9 :start 1)
+  (let ((gen (product (iota 9 :start 1)
 		      (list #'candidates-get-row
 			    #'candidates-get-col
 			    #'candidates-get-box))))
     (iter (for (i func) in-generator gen)
       ;; (format t "funkkia ~d ~a ~%" i func)
+      (finally (return (make-findresult :found found :eliminated eliminated)))
       (let* ((set (funcall func i cands))
 	     (result (funcall pred set))
-	     (nfound (find-result-found result))
-	     (neliminated (find-result-eliminated result)))
+	     (nfound (findresult-found result))
+	     (neliminated (findresult-eliminated result)))
 	(if (not (null nfound))
-	    (appending nfound into found))
+	    (unioning nfound into found))
 	(if (not (null neliminated))
-	    (appending neliminated into eliminated))))
-    (make-find-result :found found :eliminated eliminated)))
+	    (unioning neliminated into eliminated))))))
+
 
 
 (defun find-naked-singles (solved cells)
@@ -184,35 +198,34 @@
 				(let ((pos (car x))
 				      (values (cdr x)))
 				  (> (length values) 1)))
-			      grouped))
-	 (found nil))
+			      grouped)))
     (iter (for (pos1 . values) in ngrouped)
-      ;; (format t "~c snafu: ~a -> ~a~%" #\TAB pos1 values)
+      (finally (return (make-findresult :found found :eliminated nil)))
       (if (= (length values) 1)
 	  (let ((cell (find-if cells (lambda (pos2) (eqpos pos1 pos2) :key #'cell-pos))))
-	    (appending cell into found))))
-    (make-find-result :found found :eliminated nil)))
+	    ;; (format t "naked single found: ~a~%" cell)
+	    (adjoining cell into found))))))
 
 (defun find-singles-in-set (cells)
   (let* ((numbers (mapcar #'cell-value cells))
-	 (grouped (groupby (sort numbers #'<)))
-	 (found nil))
+	 (grouped (groupby (sort numbers #'<))))
     (iter (for (n . ns) in grouped)
-      ;; (format t "number: ~a -> ~a~%" n ns)
+      (finally (return (make-findresult :found found :eliminated nil)))
       (if (= (length ns) 1)
-	  (let ((cell (find-if cells #'= :key #'cell-value)))
-	    (appending cell into found))))
-    (make-find-result :found found :eliminated nil)))
-
+	  (let ((cell (find-if (lambda (value) (= n value)) cells :key #'cell-value)))
+	    ;; (format t "hidden single found: ~a ~a ~a~%" cell ns cells)
+	    (adjoining cell into found))))))
 
 (defun find-hidden-singles (solved cells)
   (finder #'find-singles-in-set cells))
 
-
 (defstruct solver solved candidates)
 
-(defun solver-remove-candidates (solver candidates)
-  (setf (solver-candidates solver) (remove-candidates (solver-solved solver) candidates)))
+(defun solver-remove-eliminated-candidates (solver eliminated)
+  (setf (solver-candidates solver) (remove-eliminated-candidates (solver-candidates solver) eliminated)))
+
+(defun solver-remove-solved-candidates (solver solved)
+  (setf (solver-candidates solver) (remove-solved-candidates (solver-candidates solver) solved)))
 
 (defun solver-update-solved (solver solved)
   (let ((grid (solver-solved solver)))
@@ -220,6 +233,7 @@
       (let* ((pos (cell-pos cell))
              (row (pos-row pos))
              (col (pos-col pos)))
+	(format t "set solved ~a ~a ~a~%" row col (cell-value cell))
         (setf (aref grid (1- row) (1- col)) (cell-value cell))))))
 
 
@@ -233,24 +247,22 @@
 	(solver)
 	(loop
 	  (if exitflag
-	      (progn
-		(format t "solve finished~%")
-		(return solver)))
+	      (return solver))
 	  (iter (for fun in funs)
 	    (finally (setf exitflag t))
 	    (let* ((result (funcall fun solved candidates))
-		   (eliminated (find-result-eliminated result))
-		   (found (find-result-found result)))
-	      (format t "fook: ~a ~a ~a~%" fun found eliminated)
+		   (eliminated (findresult-eliminated result))
+		   (found (findresult-found result)))
+	      ;; (format t "fook: ~a ~a ~a~%" fun found eliminated)
 	      (cond
 		((and (null found) (null eliminated))
 		 (next-iteration))
-		((not (empty found))
+		((not (null found))
 		 (solver-update-solved solver found)
-		 (solver-remove-candidates solver found)
+		 (solver-remove-solved-candidates solver found)
 		 (finish))
-		((not (empty eliminated))
-		 (solver-remove-candidates solver found)
+		((not (null eliminated))
+		 (solver-remove-eliminated-candidates solver eliminated)
 		 (finish)))))))))
 
 (defun print-grid (grid)
@@ -278,14 +290,15 @@
                     (write-line "+-------+-------+-------+")))))))))
 
 (defun main ()
-  (let ((grid "400000938032094100095300240370609004529001673604703090957008300003900400240030709"))
+  (let ((grid1 "400000938032094100095300240370609004529001673604703090957008300003900400240030709")
+	(grid "014600300050000007090840100000400800600050009007009000008016030300000010009008570"))
     (print grid)
     ;; (with-input-from-string (s grid)
     ;;  (print (read-char s)))
     ;;(loop for c across grid do (princ c))))
     (let* ((solved (string-to-grid grid))
            (candidates (create-candidates))
-           (ncandidates (remove-candidates candidates solved))
+           (ncandidates (remove-solved-candidates candidates solved))
 	   (solver (make-solver :solved solved :candidates ncandidates)))
       ;; (print solved)
       ;; (print candidates)
@@ -294,6 +307,8 @@
       (terpri)
       (print-grid solved)
       (solver-solve solver)
+      (format t "solve finished with ~a left~%" (length (solver-candidates solver)))
+      (print-grid (solver-solved solver))
       1)))
 
 ;; (main)
