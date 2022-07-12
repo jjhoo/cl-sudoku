@@ -7,14 +7,16 @@
                "snakes")
   :components ((:module "src"
                 :components
-                ((:file "main"))))
+                ((:file "main")
+		 (:file "utils"))))
   :description "Sudoku solver"
   :in-order-to ((test-op (test-op "cl-sudoku/tests"))))
 
 (defsystem "cl-sudoku/tests"
   :author "Jani Hakala"
   :license "GPL-2"
-  :depends-on ("cl-sudoku"
+  :depends-on ("alexandria"
+               "cl-sudoku"
                "rove")
   :components ((:module "tests"
                 :components
