@@ -15,7 +15,8 @@
 (defsystem "cl-sudoku/tests"
   :author "Jani Hakala"
   :license "GPL-2"
-  :depends-on ("cl-sudoku"
+  :depends-on ("alexandria"
+               "cl-sudoku"
                "rove")
   :components ((:module "tests"
                 :components

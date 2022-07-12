@@ -20,7 +20,11 @@
   (:use :cl)
   (:export groupby
 	   main
-	   print-grid))
+	   print-grid
+	   solver-from-string
+	   solver-candidates
+	   solver-solve
+	   solver-solved))
 
 (in-package :cl-sudoku)
 
@@ -118,7 +122,7 @@
             (incf j))))
     grid))
 
-(defun create-candidates ()
+(defun init-candidates ()
   (iter outer (for i in (iota 9 :start 1))
     (iter (for j in (iota 9 :start 1))
       (iter (for n in (iota 9 :start 1))
@@ -221,6 +225,12 @@
 
 (defstruct solver solved candidates)
 
+(defun solver-from-string (grid)
+  (declare (type string grid))
+  (let ((solved (string-to-grid grid))
+	(candidates (init-candidates)))
+    (make-solver :solved solved :candidates (remove-solved-candidates candidates solved))))
+
 (defun solver-remove-eliminated-candidates (solver eliminated)
   (setf (solver-candidates solver) (remove-eliminated-candidates (solver-candidates solver) eliminated)))
 
@@ -296,14 +306,12 @@
     ;; (with-input-from-string (s grid)
     ;;  (print (read-char s)))
     ;;(loop for c across grid do (princ c))))
-    (let* ((solved (string-to-grid grid))
-           (candidates (create-candidates))
-           (ncandidates (remove-solved-candidates candidates solved))
-	   (solver (make-solver :solved solved :candidates ncandidates)))
+    (let* ((solver (solver-from-string grid))
+	   (solved (solver-solved solver))
+	   (candidates (solver-candidates solver)))
       ;; (print solved)
       ;; (print candidates)
-      ;; (print ncandidates)
-      (print (length ncandidates))
+      (print (length candidates))
       (terpri)
       (print-grid solved)
       (solver-solve solver)
